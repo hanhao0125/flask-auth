@@ -1,5 +1,5 @@
 
-SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:@localhost/liar'
+SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:@localhost:3306/liar'
 SQLALCHEMY_COMMIT_ON_TEARDOWN = True
 
 CSRF_ENABLED = True

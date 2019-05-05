@@ -4,6 +4,10 @@ from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 from flask_login import UserMixin
 
+from passlib.apps import custom_app_context as pwd_context
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+import config
+
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -14,24 +18,38 @@ class User(db.Model, UserMixin):
     phone = db.Column(db.String(32))
     is_admin = db.Column(db.Boolean)
 
-    def __init__(self, account):
-        self.username = account
-        self.account = account
+    def __init__(self, username):
+        self.username = username
         self.register_date = datetime.utcnow()
         self.is_admin = False
 
     def hash_password(self, password):
-        self.password = generate_password_hash(password)
-        return self.password
+        self.password = pwd_context.encrypt(password)
 
     def verify_password(self, password):
-        password_hash = generate_password_hash(password)
-        if password_hash is None:
-            return False
-        return check_password_hash(self.password, password)
+        return pwd_context.verify(password, self.password)
 
     def admin(self):
         return self.is_admin
+
+    # default expiration 3600s = 1 hour
+    def generate_auth_token(self, expiration=3600):
+        s = Serializer(config.SECRET_KEY, expires_in=expiration)
+        return s.dumps({'id': self.id})
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(config.SECRET_KEY)
+        try:
+            data = s.loads(token)
+        # except SignatureExpired:
+        #     return None  # valid token, but expired
+        # except BadSignature:
+        #     return None  # invalid token
+        except Exception:
+            return None
+        user = User.query.get(data['id'])
+        return user
 
     def __repr__(self):
         return 'User name=%s' % self.username
